@@ -1,0 +1,38 @@
+{
+  "name": "JurySimulator",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$path": "src/shared"
+    },
+
+    "ServerScriptService": {
+      "$path": "src/server/scripts"
+    },
+
+    "ServerStorage": {
+      "$path": "src/server/storage"
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/client/player"
+      },
+      "StarterCharacterScripts": {
+        "$path": "src/client/character"
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}
