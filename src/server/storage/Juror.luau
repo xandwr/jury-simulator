@@ -1,4 +1,11 @@
 -- ServerStorage/Juror (Fixed Integration)
+function tablekeys(t)
+	local keys = {}
+	for k, _ in pairs(t) do
+		table.insert(keys, k)
+	end
+	return keys
+end
 
 local createSignal = require(game.ReplicatedStorage.Signal)
 -- Make BeliefGraph optional for gradual rollout
@@ -315,6 +322,135 @@ function Juror:calculateEvidenceStrength(evidence, _targetNode)
 	return math.clamp(finalStrength, 0.05, 0.4) -- Max 40% change per evidence
 end
 
+function Juror:calculateSocialInfluenceFrom(otherJuror, relationship)
+	local myTraits = self.PersonalityTraits
+	local otherTraits = otherJuror.PersonalityTraits
+	
+	-- Base influence factors
+	local trustFactor = myTraits.Trusting * 0.4
+	local cautiousFactor = (1 - myTraits.Cautious) * 0.3  -- Less cautious = more influenced
+	local analyticalResistance = myTraits.Analytical * 0.2 -- More analytical = less influenced
+	local emotionalSusceptibility = myTraits.Emotional * 0.3
+	
+	-- Other person's influence power
+	local otherAuthority = otherTraits.Decisive * 0.3 + otherTraits.Analytical * 0.2
+	local otherCharisma = otherTraits.Trusting * 0.2 + otherTraits.Emotional * 0.1
+	
+	-- Relationship modifiers
+	local relationshipMod = 1.0
+	if relationship == "dominant" then
+		relationshipMod = 1.5 -- Dominant speakers have more influence
+	elseif relationship == "group_member" then
+		relationshipMod = 1.2 -- Group members influence each other more
+	elseif relationship == "interrupting" then
+		relationshipMod = 0.7 -- Interruptions reduce influence
+	end
+	
+	-- Personality compatibility affects influence
+	local compatibility = self:calculatePersonalityCompatibility(otherJuror)
+	
+	local baseInfluence = (trustFactor + emotionalSusceptibility - analyticalResistance + cautiousFactor) / 4
+	local otherPower = (otherAuthority + otherCharisma) / 2
+	
+	local totalInfluence = baseInfluence * otherPower * relationshipMod * compatibility
+	
+	return math.clamp(totalInfluence, 0, 0.3) -- Max 30% influence per interaction
+end
+
+function Juror:calculatePersonalityCompatibility(otherJuror)
+	local myTraits = self.PersonalityTraits
+	local otherTraits = otherJuror.PersonalityTraits
+	
+	-- Similar analytical levels work well together
+	local analyticalMatch = 1 - math.abs(myTraits.Analytical - otherTraits.Analytical)
+	
+	-- Trust levels should be similar for influence
+	local trustMatch = 1 - math.abs(myTraits.Trusting - otherTraits.Trusting) * 0.5
+	
+	-- Emotional compatibility
+	local emotionalBalance = 0.5 + math.abs(myTraits.Emotional - otherTraits.Emotional) * 0.3
+	
+	-- Decisive/cautious balance (opposites can work)
+	local decisiveBalance = 0.7 + math.abs(myTraits.Decisive - otherTraits.Decisive) * 0.2
+	
+	return (analyticalMatch + trustMatch + emotionalBalance + decisiveBalance) / 4
+end
+
+function Juror:applySocialInfluence(influencingJuror, influenceStrength, beliefChanges, relationship)
+	if not influencingJuror or influenceStrength <= 0 then
+		return {}
+	end
+	
+	-- Calculate how much this juror is influenced by the other
+	local susceptibility = self:calculateSocialInfluenceFrom(influencingJuror, relationship)
+	local actualInfluence = influenceStrength * susceptibility
+	
+	if actualInfluence < 0.05 then
+		return {} -- Minimal influence, ignore
+	end
+	
+	local socialChanges = {}
+	local myBeliefs = self.BeliefNodes
+	local theirBeliefs = influencingJuror.BeliefNodes
+	
+	-- Apply influence to beliefs that changed in the influencing juror
+	for beliefNode, theirChange in pairs(beliefChanges) do
+		if myBeliefs[beliefNode] and theirBeliefs[beliefNode] then
+			local myBelief = myBeliefs[beliefNode]
+			local theirBelief = theirBeliefs[beliefNode]
+			
+			-- Calculate desired change direction
+			local beliefGap = theirBelief - myBelief
+			local socialPull = beliefGap * actualInfluence * 0.5 -- Reduce magnitude
+			
+			-- Apply personality-based resistance
+			if self.PersonalityArchetype then
+				if self.PersonalityArchetype.name == "Independent Thinker" then
+					socialPull *= 0.3 -- Highly resistant to social influence
+				elseif self.PersonalityArchetype.name == "Authority Believer" and relationship == "dominant" then
+					socialPull *= 1.8 -- Extra susceptible to authority figures
+				elseif self.PersonalityArchetype.name == "People Person" then
+					socialPull *= 1.4 -- More susceptible to social influence
+				end
+			end
+			
+			-- Apply the social influence
+			local newBelief = math.clamp(myBelief + socialPull, 0, 1)
+			local actualChange = newBelief - myBelief
+			
+			if math.abs(actualChange) > 0.02 then -- Only record significant changes
+				myBeliefs[beliefNode] = newBelief
+				socialChanges[beliefNode] = actualChange
+				
+				-- Fire belief change signal with social context
+				self.OnBeliefChanged:Fire(beliefNode, myBelief, newBelief, {
+					source = "social_influence",
+					influencer = influencingJuror.Id,
+					relationship = relationship,
+					influence_strength = actualInfluence
+				})
+			end
+		end
+	end
+	
+	-- Update enhanced graph if available
+	if BeliefGraph and self.BeliefGraph then
+		pcall(function()
+			for node, prob in pairs(self.BeliefNodes) do
+				self.BeliefGraph.probabilities[node] = prob
+			end
+			self.BeliefGraph:computeCentralities()
+		end)
+	end
+	
+	-- Propagate social changes through network (reduced to prevent cascade)
+	if next(socialChanges) then
+		self:propagateBeliefChanges(tablekeys(socialChanges))
+	end
+	
+	return socialChanges
+end
+
 -- Propagate belief changes through the network
 function Juror:propagateBeliefChanges(changedNodes)
 	local propagationRounds = 2 -- Limit propagation to prevent infinite loops
@@ -448,6 +584,59 @@ function Juror:EvaluateEvidence(evidence)
 		coherenceChange = coherenceChange,
 		newCoherence = newCoherence,
 	}
+end
+
+function Juror:EvaluateEvidenceWithSocialContext(evidence, socialContext, activeInfluencers)
+	-- Store prior state for social influence tracking
+	local priorBeliefs = table.clone(self.BeliefNodes)
+	
+	-- Apply standard evidence evaluation first
+	local evaluation = self:EvaluateEvidence(evidence)
+	
+	-- Calculate what beliefs changed due to evidence
+	local evidenceChanges = {}
+	for node, newValue in pairs(self.BeliefNodes) do
+		local oldValue = priorBeliefs[node]
+		if math.abs(newValue - oldValue) > 0.01 then
+			evidenceChanges[node] = newValue - oldValue
+		end
+	end
+	
+	-- Apply social influence from active speakers/dominant figures
+	if activeInfluencers and next(activeInfluencers) then
+		for influencerId, influenceData in pairs(activeInfluencers) do
+			if influencerId ~= self.Id then
+				local influencer = influenceData.juror
+				local relationship = influenceData.relationship or "general"
+				local strength = influenceData.strength or 0.5
+				
+				-- Apply social influence
+				local socialChanges = self:applySocialInfluence(
+					influencer, 
+					strength, 
+					evidenceChanges, 
+					relationship
+				)
+				
+				-- Track social influence in evaluation
+				if next(socialChanges) then
+					evaluation.socialInfluence = socialChanges
+					evaluation.influencedBy = influencerId
+					
+					-- Recalculate meaning with social component
+					local socialMeaning = 0
+					for _, change in pairs(socialChanges) do
+						socialMeaning += math.abs(change)
+					end
+					
+					evaluation.socialMeaning = socialMeaning
+					evaluation.totalMeaning = evaluation.rawMeaning + (socialMeaning * 0.5)
+				end
+			end
+		end
+	end
+	
+	return evaluation
 end
 
 -- Calculate overall guilt belief from network state
