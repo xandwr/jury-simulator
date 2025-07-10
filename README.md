@@ -6,9 +6,9 @@
 * **Prior/posterior** $M_{\mathrm{prior}},M_{\mathrm{post}}$: models before/after data $D$ on $[t,t+\Delta t]$.
 * **Trimmed KL**
 
-  $$
+  $
   D^*_{\mathrm{KL}} = \min\Bigl(D_{\mathrm{KL}}\bigl[P_{\mathrm{post}}\|P_{\mathrm{prior}}\bigr],\;\log|V|\Bigr).
-  $$
+  $
 
   We use the analytic bound $\log|V|$ for finite support.
 
@@ -18,15 +18,15 @@
 
 **Definition**
 
-$$
+$
 C(t) = \Psi(D;M) \times \frac{D^*_{\mathrm{KL}}}{\Delta t}.
-$$
+$
 
 * **Salience weight** $\Psi$:
 
-  $$
+  $
   \Psi = \sigma\bigl(f(A,R,E,\hat\mu)\bigr),
-  $$
+  $
 
   where:
 
@@ -40,10 +40,10 @@ $$
 
 **Raw Meaning** (cost $O(|V|)$)
 
-$$
+$
 \mu(D) = \sum_{i\in V} \Bigl|H_i^{\mathrm{post}} - H_i^{\mathrm{prior}}\Bigr|,
 \quad H_i = \sum_{k=1}^K w_k\,\tilde m_k(B_i).
-$$
+$
 
 * **Scalability:** For large $|V|$, approximate by:
 
@@ -54,13 +54,13 @@ $$
 
 **Spectral surrogate**
 
-$$
+$
 L = I - D^{-1/2} A D^{-1/2},\quad \phi(M)=U_d\in\mathbb R^{|V|\times d}.
-$$
+$
 
-$$
+$
 \mu_{\mathrm{spectral}} = \bigl\|\phi(M_{\mathrm{post}})-\phi(M_{\mathrm{prior}})\bigr\|_F.
-$$
+$
 
 * **Dimension** $d$: smallest such that
   $\sum_{i=1}^d\lambda_i/\sum_{j=1}^{|V|}\lambda_j\ge1-\tau$.
@@ -70,10 +70,10 @@ $$
 
 #### 4. Effective Meaning $\mu^*(D)$
 
-$$
+$
 \mu^*(D)=\mu(D)\times\sigma\bigl(\beta\,\Delta C_{\mathrm{norm}}\bigr),
 \quad C_{\mathrm{norm}}=C(t)/\log|V|.
-$$
+$
 
 * **Fit** $\beta$ via logistic regression on psychophysical labels.
 * **Squash**: constrained logistic or softplus for $\Delta C_{\mathrm{norm}}< -\epsilon$.
