@@ -12,44 +12,44 @@ JurySpawner.Registry = {}
 local PersonalityArchetypes = {
 	{
 		name = "Analytical Thinker",
-		traits = {Analytical = 0.9, Emotional = 0.2, Cautious = 0.7, Decisive = 0.6, Trusting = 0.5},
-		description = "Focuses on facts and logical reasoning"
+		traits = { Analytical = 0.9, Emotional = 0.2, Cautious = 0.7, Decisive = 0.6, Trusting = 0.5 },
+		description = "Focuses on facts and logical reasoning",
 	},
 	{
-		name = "Emotional Responder", 
-		traits = {Analytical = 0.3, Emotional = 0.9, Cautious = 0.8, Decisive = 0.4, Trusting = 0.7},
-		description = "Makes decisions based on feelings and empathy"
+		name = "Emotional Responder",
+		traits = { Analytical = 0.3, Emotional = 0.9, Cautious = 0.8, Decisive = 0.4, Trusting = 0.7 },
+		description = "Makes decisions based on feelings and empathy",
 	},
 	{
 		name = "Skeptical Doubter",
-		traits = {Analytical = 0.7, Emotional = 0.3, Cautious = 0.9, Decisive = 0.3, Trusting = 0.2},
-		description = "Questions everything, hard to convince"
+		traits = { Analytical = 0.7, Emotional = 0.3, Cautious = 0.9, Decisive = 0.3, Trusting = 0.2 },
+		description = "Questions everything, hard to convince",
 	},
 	{
 		name = "Quick Decider",
-		traits = {Analytical = 0.5, Emotional = 0.4, Cautious = 0.2, Decisive = 0.9, Trusting = 0.6},
-		description = "Makes fast decisions and sticks to them"
+		traits = { Analytical = 0.5, Emotional = 0.4, Cautious = 0.2, Decisive = 0.9, Trusting = 0.6 },
+		description = "Makes fast decisions and sticks to them",
 	},
 	{
 		name = "Authority Believer",
-		traits = {Analytical = 0.4, Emotional = 0.3, Cautious = 0.6, Decisive = 0.7, Trusting = 0.9},
-		description = "Trusts police, lawyers, and the system"
+		traits = { Analytical = 0.4, Emotional = 0.3, Cautious = 0.6, Decisive = 0.7, Trusting = 0.9 },
+		description = "Trusts police, lawyers, and the system",
 	},
 	{
 		name = "Careful Weigher",
-		traits = {Analytical = 0.8, Emotional = 0.5, Cautious = 0.9, Decisive = 0.5, Trusting = 0.6},
-		description = "Thoroughly considers all evidence"
+		traits = { Analytical = 0.8, Emotional = 0.5, Cautious = 0.9, Decisive = 0.5, Trusting = 0.6 },
+		description = "Thoroughly considers all evidence",
 	},
 	{
 		name = "People Person",
-		traits = {Analytical = 0.4, Emotional = 0.8, Cautious = 0.5, Decisive = 0.6, Trusting = 0.8},
-		description = "Focuses on character and relationships"
+		traits = { Analytical = 0.4, Emotional = 0.8, Cautious = 0.5, Decisive = 0.6, Trusting = 0.8 },
+		description = "Focuses on character and relationships",
 	},
 	{
 		name = "Independent Thinker",
-		traits = {Analytical = 0.6, Emotional = 0.4, Cautious = 0.7, Decisive = 0.8, Trusting = 0.3},
-		description = "Relies on own judgment, resists influence"
-	}
+		traits = { Analytical = 0.6, Emotional = 0.4, Cautious = 0.7, Decisive = 0.8, Trusting = 0.3 },
+		description = "Relies on own judgment, resists influence",
+	},
 }
 
 local function playSitAnimation(humanoid: Humanoid)
@@ -64,7 +64,9 @@ end
 
 -- Apply personality archetype to a juror
 local function applyPersonalityArchetype(juror, archetype)
-	if not archetype then return end
+	if not archetype then
+		return
+	end
 
 	-- Override personality traits with archetype
 	for trait, value in pairs(archetype.traits) do
@@ -89,7 +91,7 @@ local function applyPersonalityArchetype(juror, archetype)
 	-- Store archetype info
 	juror.PersonalityArchetype = {
 		name = archetype.name,
-		description = archetype.description
+		description = archetype.description,
 	}
 end
 
@@ -148,21 +150,29 @@ function JurySpawner.spawnJurorAt(position: Vector3, seatPart: Seat?, personalit
 	JurySpawner.Registry[juror.Id] = {
 		juror = juror,
 		model = model,
-		personality = personalityArchetype
+		personality = personalityArchetype,
 	}
 
 	-- Set up belief change logging for debugging
 	juror.OnBeliefChanged:Connect(function(beliefName, oldValue, newValue, _context)
 		local change = math.abs(newValue - oldValue)
 		if change > 0.1 then -- Only log significant changes
-			print(`[{juror.Id}] {beliefName}: {math.floor(oldValue*100)}% → {math.floor(newValue*100)}% (Δ{math.floor(change*100)}%)`)
+			print(
+				`[{juror.Id}] {beliefName}: {math.floor(oldValue * 100)}% → {math.floor(newValue * 100)}% (Δ{math.floor(
+					change * 100
+				)}%)`
+			)
 		end
 	end)
 
 	juror.OnCoherenceChanged:Connect(function(oldCoherence, newCoherence)
 		local change = newCoherence - oldCoherence
 		if math.abs(change) > 0.05 then
-			print(`[{juror.Id}] Coherence: {math.floor(oldCoherence*100)}% → {math.floor(newCoherence*100)}% (Δ{math.floor(change*100)}%)`)
+			print(
+				`[{juror.Id}] Coherence: {math.floor(oldCoherence * 100)}% → {math.floor(newCoherence * 100)}% (Δ{math.floor(
+					change * 100
+				)}%)`
+			)
 		end
 	end)
 
@@ -203,7 +213,7 @@ end
 -- Print detailed jury composition
 function JurySpawner.printJuryComposition()
 	local personalityCounts = {}
-	local avgTraits = {Analytical = 0, Emotional = 0, Cautious = 0, Decisive = 0, Trusting = 0}
+	local avgTraits = { Analytical = 0, Emotional = 0, Cautious = 0, Decisive = 0, Trusting = 0 }
 	local jurorCount = 0
 
 	for _id, data in pairs(JurySpawner.Registry) do
@@ -266,7 +276,7 @@ function JurySpawner.getJuryStats()
 		avgCoherence = 0,
 		avgGuilt = 0,
 		personalityDistribution = {},
-		beliefRanges = {}
+		beliefRanges = {},
 	}
 
 	local coherenceSum = 0

@@ -19,31 +19,31 @@ CaseFile.Evidence = {
 		Direction = "For", -- For/Against/Neutral
 		Strength = 0.6,
 		Complexity = 0.4,
-		AffectedNodes = {"WitnessCredibility", "PhysicalEvidence", "Opportunity"},
+		AffectedNodes = { "WitnessCredibility", "PhysicalEvidence", "Opportunity" },
 		Source = "Bar patron Sarah Jenkins",
-		Reliability = 0.7 -- How reliable this evidence is considered
+		Reliability = 0.7, -- How reliable this evidence is considered
 	},
 	{
-		Id = "Witness2", 
+		Id = "Witness2",
 		Type = "Testimony",
 		Text = "It was dark, I couldn't really tell who it was. Could have been anyone.",
 		Direction = "Against",
 		Strength = 0.4,
 		Complexity = 0.3,
-		AffectedNodes = {"WitnessCredibility", "EvidenceQuality", "FearOfWrongVerdict"},
+		AffectedNodes = { "WitnessCredibility", "EvidenceQuality", "FearOfWrongVerdict" },
 		Source = "Bar patron Mike Chen",
-		Reliability = 0.6
+		Reliability = 0.6,
 	},
 	{
 		Id = "PoliceReport",
-		Type = "Document", 
+		Type = "Document",
 		Text = "No fingerprints recovered from the scene. DNA samples degraded due to rain.",
 		Direction = "Against",
 		Strength = 0.5,
 		Complexity = 0.6,
-		AffectedNodes = {"ForensicAccuracy", "PoliceCompetence", "PhysicalEvidence"},
+		AffectedNodes = { "ForensicAccuracy", "PoliceCompetence", "PhysicalEvidence" },
 		Source = "Detective Martinez crime scene report",
-		Reliability = 0.9
+		Reliability = 0.9,
 	},
 	{
 		Id = "Timeline",
@@ -52,20 +52,20 @@ CaseFile.Evidence = {
 		Direction = "For",
 		Strength = 0.7,
 		Complexity = 0.5,
-		AffectedNodes = {"Timeline", "Opportunity", "DefendantCharacter"},
+		AffectedNodes = { "Timeline", "Opportunity", "DefendantCharacter" },
 		Source = "Security camera footage and medical examiner",
-		Reliability = 0.95
+		Reliability = 0.95,
 	},
 	{
 		Id = "BarFight",
 		Type = "Testimony",
 		Text = "Derek got into a heated argument with the victim earlier that night about money.",
-		Direction = "For", 
+		Direction = "For",
 		Strength = 0.6,
 		Complexity = 0.4,
-		AffectedNodes = {"Motive", "DefendantCharacter", "PastBehavior"},
+		AffectedNodes = { "Motive", "DefendantCharacter", "PastBehavior" },
 		Source = "Bartender testimony",
-		Reliability = 0.8
+		Reliability = 0.8,
 	},
 	{
 		Id = "CharacterWitness",
@@ -74,9 +74,9 @@ CaseFile.Evidence = {
 		Direction = "Against",
 		Strength = 0.4,
 		Complexity = 0.3,
-		AffectedNodes = {"DefendantCharacter", "PastBehavior", "Empathy"},
-		Source = "Derek's neighbor Mrs. Rodriguez", 
-		Reliability = 0.6
+		AffectedNodes = { "DefendantCharacter", "PastBehavior", "Empathy" },
+		Source = "Derek's neighbor Mrs. Rodriguez",
+		Reliability = 0.6,
 	},
 	{
 		Id = "SecurityFootage",
@@ -85,21 +85,21 @@ CaseFile.Evidence = {
 		Direction = "For",
 		Strength = 0.5,
 		Complexity = 0.7,
-		AffectedNodes = {"PhysicalEvidence", "ForensicAccuracy", "EvidenceQuality"},
+		AffectedNodes = { "PhysicalEvidence", "ForensicAccuracy", "EvidenceQuality" },
 		Source = "Granger's Pub security system",
-		Reliability = 0.7
+		Reliability = 0.7,
 	},
 	{
 		Id = "WeaponSearch",
 		Type = "Document",
 		Text = "Police searched Derek's home and vehicle. No weapon found.",
-		Direction = "Against", 
+		Direction = "Against",
 		Strength = 0.4,
 		Complexity = 0.4,
-		AffectedNodes = {"PhysicalEvidence", "PoliceCompetence", "ProsecutorHonesty"},
+		AffectedNodes = { "PhysicalEvidence", "PoliceCompetence", "ProsecutorHonesty" },
 		Source = "Search warrant execution report",
-		Reliability = 0.9
-	}
+		Reliability = 0.9,
+	},
 }
 
 -- Jury-shared memory (what evidence has been presented)
@@ -108,10 +108,10 @@ CaseFile.EvidenceRevealOrder = {} -- Track order of evidence presentation
 
 -- Evidence presentation categories
 CaseFile.EvidenceCategories = {
-	Opening = {"Timeline", "BarFight"}, -- Set the scene
-	Prosecution = {"Witness1", "SecurityFootage"}, -- Build case for guilt  
-	Defense = {"Witness2", "CharacterWitness", "WeaponSearch"}, -- Create doubt
-	Technical = {"PoliceReport"} -- Complex/technical evidence
+	Opening = { "Timeline", "BarFight" }, -- Set the scene
+	Prosecution = { "Witness1", "SecurityFootage" }, -- Build case for guilt
+	Defense = { "Witness2", "CharacterWitness", "WeaponSearch" }, -- Create doubt
+	Technical = { "PoliceReport" }, -- Complex/technical evidence
 }
 
 function CaseFile.reveal(evidenceId)
@@ -129,7 +129,7 @@ function CaseFile.reveal(evidenceId)
 			table.insert(CaseFile.EvidenceRevealOrder, {
 				evidence = evidence,
 				timestamp = tick(),
-				order = #CaseFile.EvidenceRevealOrder + 1
+				order = #CaseFile.EvidenceRevealOrder + 1,
 			})
 
 			return evidence
@@ -157,13 +157,17 @@ function CaseFile.revealCategory(categoryName)
 end
 
 function CaseFile.getRandomKnownEvidence()
-	if #CaseFile.SeenEvidence == 0 then return nil end
+	if #CaseFile.SeenEvidence == 0 then
+		return nil
+	end
 	return CaseFile.SeenEvidence[math.random(1, #CaseFile.SeenEvidence)]
 end
 
 -- Get evidence weighted by recency and importance
 function CaseFile.getWeightedRandomEvidence()
-	if #CaseFile.SeenEvidence == 0 then return nil end
+	if #CaseFile.SeenEvidence == 0 then
+		return nil
+	end
 
 	local weights = {}
 	local totalWeight = 0
@@ -171,7 +175,7 @@ function CaseFile.getWeightedRandomEvidence()
 	for i, evidence in ipairs(CaseFile.SeenEvidence) do
 		-- More recent evidence gets higher weight
 		local recencyWeight = (i / #CaseFile.SeenEvidence) ^ 2
-		-- Higher strength evidence gets higher weight  
+		-- Higher strength evidence gets higher weight
 		local strengthWeight = evidence.Strength or 0.5
 		-- Complex evidence gets slightly lower weight (harder to remember)
 		local complexityPenalty = 1 - ((evidence.Complexity or 0.5) * 0.3)
@@ -198,7 +202,9 @@ end
 
 -- Get evidence that would be interesting given current jury state
 function CaseFile.getRelevantEvidence(jurorCognitiveStates)
-	if #CaseFile.SeenEvidence == 0 then return nil end
+	if #CaseFile.SeenEvidence == 0 then
+		return nil
+	end
 
 	-- Analyze jury's current belief patterns
 	local avgCoherence = 0
@@ -237,7 +243,7 @@ function CaseFile.getRelevantEvidence(jurorCognitiveStates)
 		end
 	end
 
-	-- If jury is leaning not guilty, show prosecution evidence  
+	-- If jury is leaning not guilty, show prosecution evidence
 	if avgGuilt < 0.4 then
 		for _, evidence in ipairs(CaseFile.SeenEvidence) do
 			if evidence.Direction == "For" then
@@ -286,7 +292,7 @@ function CaseFile.getEvidenceStats()
 		neutral = neutralCount,
 		avgStrength = count > 0 and (totalStrength / count) or 0,
 		avgComplexity = count > 0 and (totalComplexity / count) or 0,
-		prosecutionBias = count > 0 and ((forCount - againstCount) / count) or 0
+		prosecutionBias = count > 0 and ((forCount - againstCount) / count) or 0,
 	}
 end
 

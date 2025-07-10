@@ -1,6 +1,11 @@
--- ServerStorage/Juror
+-- ServerStorage/Juror (Fixed Integration)
 
 local createSignal = require(game.ReplicatedStorage.Signal)
+-- Make BeliefGraph optional for gradual rollout
+local BeliefGraph = nil
+pcall(function()
+	BeliefGraph = require(script.Parent.BeliefGraph)
+end)
 
 local Juror = {}
 Juror.__index = Juror
@@ -8,44 +13,68 @@ Juror.__index = Juror
 -- Belief node definitions for legal reasoning
 local BELIEF_NODES = {
 	-- Evidence-related beliefs
-	"WitnessCredibility", "PhysicalEvidence", "Timeline", "ForensicAccuracy",
+	"WitnessCredibility",
+	"PhysicalEvidence",
+	"Timeline",
+	"ForensicAccuracy",
 
-	-- Defendant-related beliefs  
-	"DefendantCharacter", "Motive", "Opportunity", "PastBehavior",
+	-- Defendant-related beliefs
+	"DefendantCharacter",
+	"Motive",
+	"Opportunity",
+	"PastBehavior",
 
 	-- System-related beliefs
-	"PoliceCompetence", "ProsecutorHonesty", "JusticeSystem", "LegalProcess",
+	"PoliceCompetence",
+	"ProsecutorHonesty",
+	"JusticeSystem",
+	"LegalProcess",
 
 	-- Personal/emotional beliefs
-	"FearOfWrongVerdict", "SocialPressure", "PersonalBias", "Empathy",
+	"FearOfWrongVerdict",
+	"SocialPressure",
+	"PersonalBias",
+	"Empathy",
 
 	-- Meta-cognitive beliefs
-	"EvidenceQuality", "CaseComplexity", "TimeToDecide", "GroupConsensus"
+	"EvidenceQuality",
+	"CaseComplexity",
+	"TimeToDecide",
+	"GroupConsensus",
 }
 
 -- Define which beliefs should correlate (simplified belief network)
 local BELIEF_CONNECTIONS = {
-	{from = "WitnessCredibility", to = "PhysicalEvidence", weight = 0.6},
-	{from = "PhysicalEvidence", to = "ForensicAccuracy", weight = 0.8},
-	{from = "Timeline", to = "Opportunity", weight = 0.7},
-	{from = "DefendantCharacter", to = "Motive", weight = 0.5},
-	{from = "PoliceCompetence", to = "JusticeSystem", weight = 0.7},
-	{from = "ProsecutorHonesty", to = "LegalProcess", weight = 0.6},
-	{from = "FearOfWrongVerdict", to = "EvidenceQuality", weight = -0.4},
-	{from = "SocialPressure", to = "GroupConsensus", weight = 0.5},
-	{from = "PersonalBias", to = "Empathy", weight = -0.3},
-	{from = "CaseComplexity", to = "TimeToDecide", weight = 0.4},
+	{ from = "WitnessCredibility", to = "PhysicalEvidence", weight = 0.6 },
+	{ from = "PhysicalEvidence", to = "ForensicAccuracy", weight = 0.8 },
+	{ from = "Timeline", to = "Opportunity", weight = 0.7 },
+	{ from = "DefendantCharacter", to = "Motive", weight = 0.5 },
+	{ from = "PoliceCompetence", to = "JusticeSystem", weight = 0.7 },
+	{ from = "ProsecutorHonesty", to = "LegalProcess", weight = 0.6 },
+	{ from = "FearOfWrongVerdict", to = "EvidenceQuality", weight = -0.4 },
+	{ from = "SocialPressure", to = "GroupConsensus", weight = 0.5 },
+	{ from = "PersonalBias", to = "Empathy", weight = -0.3 },
+	{ from = "CaseComplexity", to = "TimeToDecide", weight = 0.4 },
 }
 
 function Juror.new(id: string)
 	local self = setmetatable({}, Juror)
 	self.Id = id
 
-	-- Initialize belief network
+	-- Initialize belief network (primary data store)
 	self.BeliefNodes = {}
 	for _, node in ipairs(BELIEF_NODES) do
 		-- Random initial beliefs with some personality bias
 		self.BeliefNodes[node] = math.random(20, 80) / 100
+	end
+
+	-- Optionally initialize enhanced belief graph
+	if BeliefGraph then
+		self.BeliefGraph = BeliefGraph.new(BELIEF_NODES, BELIEF_CONNECTIONS)
+		-- Sync initial beliefs
+		for node, prob in pairs(self.BeliefNodes) do
+			self.BeliefGraph.probabilities[node] = prob
+		end
 	end
 
 	-- Store belief connections for this juror
@@ -62,6 +91,7 @@ function Juror.new(id: string)
 
 	-- Track belief changes for meaning calculation
 	self.BeliefHistory = {}
+	self.PriorGraphStates = {} -- Store previous belief graph states (if available)
 
 	-- Personality factors that affect reasoning
 	self.PersonalityTraits = {
@@ -69,8 +99,19 @@ function Juror.new(id: string)
 		Emotional = math.random(20, 80) / 100,
 		Cautious = math.random(40, 85) / 100,
 		Decisive = math.random(25, 75) / 100,
-		Trusting = math.random(30, 80) / 100
+		Trusting = math.random(30, 80) / 100,
 	}
+
+	-- Enhanced features (when available)
+	self.CentralityWeights = {
+		degree = 0.3,
+		betweenness = 0.4,
+		pagerank = 0.3,
+	}
+
+	-- Configuration flags
+	self.UseEnhancedCoherence = false -- Disabled by default for stability
+	self.UseEnhancedMeaning = false -- Disabled by default for stability
 
 	-- Signals for belief changes
 	self.OnBeliefChanged = createSignal() -- Signal<string, number, number, table>
@@ -79,8 +120,37 @@ function Juror.new(id: string)
 	return self
 end
 
--- Calculate cognitive coherence C(t) = Ψ(D;M) × D*_KL/Δt
-function Juror:calculateCoherence()
+-- Safe enhanced coherence calculation with fallback
+function Juror:calculateCoherenceEnhanced()
+	if not self.UseEnhancedCoherence or not BeliefGraph or #self.PriorGraphStates == 0 then
+		return self:calculateCoherenceLegacy()
+	end
+
+	local success, result = pcall(function()
+		local priorGraph = self.PriorGraphStates[#self.PriorGraphStates]
+		local salienceWeight = 1.0 -- Simplified for now
+
+		local coherence = self.BeliefGraph:calculateCoherence(priorGraph, 1.0, salienceWeight)
+
+		-- Sanity check and clamp result
+		if coherence ~= coherence then -- NaN check
+			return 0.5
+		end
+
+		return math.clamp(coherence, 0.1, 1.0) -- Never go below 10%
+	end)
+
+	if success and result then
+		return result
+	else
+		warn(`[Juror {self.Id}] Enhanced coherence failed, falling back to legacy`)
+		self.UseEnhancedCoherence = false
+		return self:calculateCoherenceLegacy()
+	end
+end
+
+-- Original coherence calculation (stable)
+function Juror:calculateCoherenceLegacy()
 	local beliefInconsistencies = 0
 	local totalConnections = 0
 	local maxInconsistency = 0
@@ -118,9 +188,19 @@ function Juror:calculateCoherence()
 	local analyticalBonus = self.PersonalityTraits.Analytical * 0.2
 	local emotionalPenalty = self.PersonalityTraits.Emotional * 0.1
 
+	return math.clamp(rawCoherence + analyticalBonus - emotionalPenalty, 0.2, 1.0) -- Never below 20%
+end
+
+-- Main coherence calculation with enhanced fallback
+function Juror:calculateCoherence()
 	local oldCoherence = self.CognitiveCoherence
-	self.CognitiveCoherence = math.clamp(rawCoherence + analyticalBonus - emotionalPenalty, 0, 1)
-	self.LastCoherenceChange = self.CognitiveCoherence - oldCoherence
+
+	-- Use enhanced method if enabled, otherwise legacy
+	local newCoherence = self.UseEnhancedCoherence and self:calculateCoherenceEnhanced()
+		or self:calculateCoherenceLegacy()
+
+	self.CognitiveCoherence = newCoherence
+	self.LastCoherenceChange = newCoherence - oldCoherence
 
 	self.OnCoherenceChanged:Fire(oldCoherence, self.CognitiveCoherence)
 
@@ -129,6 +209,22 @@ end
 
 -- Calculate meaning μ(D) - how much beliefs changed
 function Juror:calculateMeaning(priorBeliefs)
+	-- Use enhanced method if available and enabled
+	if self.UseEnhancedMeaning and BeliefGraph and #self.PriorGraphStates > 0 then
+		local success, result = pcall(function()
+			local priorGraph = self.PriorGraphStates[#self.PriorGraphStates]
+			return self.BeliefGraph:calculateRawMeaning(priorGraph, self.CentralityWeights)
+		end)
+
+		if success and result and result == result then -- NaN check
+			return result
+		else
+			warn(`[Juror {self.Id}] Enhanced meaning failed, falling back to legacy`)
+			self.UseEnhancedMeaning = false
+		end
+	end
+
+	-- Legacy method (stable)
 	local totalMeaning = 0
 	local changedNodes = 0
 
@@ -210,10 +306,13 @@ function Juror:calculateEvidenceStrength(evidence, _targetNode)
 	-- Processing load affects attention
 	local loadMod = math.max(0.3, 1.0 - self.ProcessingLoad)
 
-	-- Random variation (smaller than original system)
-	local randomJolt = (math.random() - 0.5) * 0.2
+	-- Reduced random variation for stability
+	local randomJolt = (math.random() - 0.5) * 0.1 -- Reduced from 0.2
 
-	return (baseStrength * personalityMod * coherenceMod * loadMod) + randomJolt
+	local finalStrength = (baseStrength * personalityMod * coherenceMod * loadMod) + randomJolt
+
+	-- Clamp to prevent extreme changes
+	return math.clamp(finalStrength, 0.05, 0.4) -- Max 40% change per evidence
 end
 
 -- Propagate belief changes through the network
@@ -234,7 +333,7 @@ function Juror:propagateBeliefChanges(changedNodes)
 					local targetProb = self.BeliefNodes[toNode]
 
 					-- Calculate influence (stronger connections = more influence)
-					local influence = weight * 0.1 * (1 / round) -- Diminishing influence over rounds
+					local influence = weight * 0.05 * (1 / round) -- Reduced from 0.1 for stability
 					local expectedTarget = sourceProb + (weight * 0.3)
 					local targetAdjustment = (expectedTarget - targetProb) * influence
 
@@ -249,18 +348,43 @@ function Juror:propagateBeliefChanges(changedNodes)
 		end
 
 		changedNodes = newChanges
-		if #changedNodes == 0 then break end -- No more changes to propagate
+		if #changedNodes == 0 then
+			break
+		end -- No more changes to propagate
+	end
+
+	-- Update enhanced graph if available
+	if BeliefGraph and self.BeliefGraph then
+		-- Sync belief changes to enhanced graph
+		for node, prob in pairs(self.BeliefNodes) do
+			self.BeliefGraph.probabilities[node] = prob
+		end
+		-- Update centralities
+		pcall(function()
+			self.BeliefGraph:computeCentralities()
+		end)
 	end
 end
 
 -- Enhanced evidence evaluation using Hum and Jolt Theory
 function Juror:EvaluateEvidence(evidence)
-	-- Store prior beliefs for meaning calculation
+	-- Store prior graph state for enhanced calculations (if available)
+	if BeliefGraph and self.BeliefGraph then
+		local priorGraph = self.BeliefGraph:clone()
+		table.insert(self.PriorGraphStates, priorGraph)
+
+		-- Keep only last 5 prior states to prevent memory growth
+		if #self.PriorGraphStates > 5 then
+			table.remove(self.PriorGraphStates, 1)
+		end
+	end
+
+	-- Store prior beliefs for legacy calculations
 	local priorBeliefs = table.clone(self.BeliefNodes)
 	local priorCoherence = self.CognitiveCoherence
 
-	-- Increase processing load temporarily
-	self.ProcessingLoad = math.min(1.0, self.ProcessingLoad + (evidence.Complexity or 0.3))
+	-- Increase processing load temporarily (reduced impact)
+	self.ProcessingLoad = math.min(0.8, self.ProcessingLoad + (evidence.Complexity or 0.2) * 0.5)
 
 	-- Get affected belief nodes
 	local affectedNodes = self:getAffectedNodes(evidence)
@@ -287,7 +411,7 @@ function Juror:EvaluateEvidence(evidence)
 		self.OnBeliefChanged:Fire(node, oldProb, newProb, {
 			evidence = evidence,
 			strength = evidenceStrength,
-			meaning = math.abs(newProb - oldProb)
+			meaning = math.abs(newProb - oldProb),
 		})
 	end
 
@@ -314,7 +438,7 @@ function Juror:EvaluateEvidence(evidence)
 		rawMeaning = rawMeaning,
 		effectiveMeaning = effectiveMeaning,
 		coherenceChange = coherenceChange,
-		affectedNodes = affectedNodes
+		affectedNodes = affectedNodes,
 	})
 
 	return {
@@ -322,7 +446,7 @@ function Juror:EvaluateEvidence(evidence)
 		rawMeaning = rawMeaning,
 		effectiveMeaning = effectiveMeaning,
 		coherenceChange = coherenceChange,
-		newCoherence = newCoherence
+		newCoherence = newCoherence,
 	}
 end
 
@@ -337,7 +461,7 @@ function Juror:calculateOverallGuilt()
 		WitnessCredibility = 0.25,
 		Timeline = 0.2,
 		Motive = 0.15,
-		Opportunity = 0.1
+		Opportunity = 0.1,
 	}
 
 	for node, weight in pairs(guiltRelevantBeliefs) do
@@ -351,14 +475,36 @@ end
 
 -- Get cognitive state summary for statement generation
 function Juror:getCognitiveState()
-	return {
+	local state = {
 		overallGuilt = self:calculateOverallGuilt(),
 		coherence = self.CognitiveCoherence,
 		processingLoad = self.ProcessingLoad,
-		recentMeaning = self.BeliefHistory[#self.BeliefHistory] and 
-			self.BeliefHistory[#self.BeliefHistory].effectiveMeaning or 0,
-		personality = self.PersonalityTraits
+		recentMeaning = self.BeliefHistory[#self.BeliefHistory]
+				and self.BeliefHistory[#self.BeliefHistory].effectiveMeaning
+			or 0,
+		personality = self.PersonalityTraits,
 	}
+
+	-- Add enhanced features if available
+	if BeliefGraph and self.BeliefGraph then
+		pcall(function()
+			state.spectralState = self.BeliefGraph:getSpectralEmbedding(3)
+			state.centralityWeights = self.CentralityWeights
+		end)
+	end
+
+	return state
+end
+
+-- Enable enhanced features gradually
+function Juror:enableEnhancedFeatures()
+	if BeliefGraph and self.BeliefGraph then
+		print(`[Juror {self.Id}] Enabling enhanced cognitive features`)
+		self.UseEnhancedCoherence = true
+		self.UseEnhancedMeaning = true
+	else
+		warn(`[Juror {self.Id}] Enhanced features not available`)
+	end
 end
 
 -- Simplified speak function using native chat

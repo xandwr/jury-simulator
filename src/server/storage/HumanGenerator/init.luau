@@ -16,7 +16,7 @@ end
 local function applyAssetsToModel(model: Model, gender: Gender)
 	local assetSet = (gender == "Male") and MaleAssets or FemaleAssets
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
-	
+
 	if not humanoid then
 		warn(`No humanoid found in model {model.Name}`)
 		return
@@ -53,18 +53,18 @@ local function applyAssetsToModel(model: Model, gender: Gender)
 		local success, result = pcall(function()
 			return InsertService:LoadAsset(hairId)
 		end)
-		
+
 		if success and result then
 			local accessory = result:FindFirstChildOfClass("Accessory")
 			if accessory then
 				-- IMPORTANT: Remove from container first, but don't parent to model
 				accessory.Parent = nil
-				
+
 				-- Let AddAccessory handle the parenting
 				local addSuccess, addErr = pcall(function()
 					humanoid:AddAccessory(accessory)
 				end)
-				
+
 				if addSuccess then
 					print(`Applied hair accessory: {hairId} to {model.Name}`)
 				else
@@ -84,13 +84,34 @@ end
 
 local function generateRandomName(gender: Gender): string
 	local maleFirstNames = {
-		"James", "Daniel", "Michael", "Ethan", "Liam", "Noah", "Henry", "Lucas"
+		"James",
+		"Daniel",
+		"Michael",
+		"Ethan",
+		"Liam",
+		"Noah",
+		"Henry",
+		"Lucas",
 	}
 	local femaleFirstNames = {
-		"Emily", "Sarah", "Jessica", "Sophia", "Emma", "Olivia", "Chloe", "Ava"
+		"Emily",
+		"Sarah",
+		"Jessica",
+		"Sophia",
+		"Emma",
+		"Olivia",
+		"Chloe",
+		"Ava",
 	}
 	local lastNames = {
-		"Johnson", "Smith", "Taylor", "Brown", "Anderson", "Miller", "Davis", "Wilson"
+		"Johnson",
+		"Smith",
+		"Taylor",
+		"Brown",
+		"Anderson",
+		"Miller",
+		"Davis",
+		"Wilson",
 	}
 
 	local first = (gender == "Male") and getRandomFrom(maleFirstNames) or getRandomFrom(femaleFirstNames)
